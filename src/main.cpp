@@ -3,6 +3,8 @@
 #include "JumpPhysics.hpp"
 #include "LevelRenderer.hpp"
 
+using namespace JumpKing;
+
 int main() {
     // 1. Initialize 3DS hardware subsystems
     romfsInit();
