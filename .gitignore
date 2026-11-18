@@ -1,0 +1,32 @@
+# Build outputs & target binaries
+build/
+*.3dsx
+*.elf
+*.smdh
+*.t3x
+*.map
+*.o
+*.d
+
+# Native PC test binaries
+test/*.exe
+test/*.o
+
+# Proprietary Jump King assets (Bring Your Own Game)
+*.xnb
+gfx/extracted_king/
+gfx/king_frames/
+romfs/levels/
+romfs/screens/*.bin
+!romfs/screens/.gitkeep
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
