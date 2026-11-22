@@ -1,0 +1,20 @@
+# JumpKing3DS
+Goal: port Jump King physics/collision to C++17 for Nintendo 3DS homebrew
+(devkitARM, libctru, citro2d). Personal learning project.
+
+Folders:
+- C:\JumpKing3DS = my workspace
+  - src_cs\ = read-only copies of decompiled C# (physics-relevant folders only)
+  - src\ = my C++ output
+  - test\ = native PC tests (g++ only)
+- C:\JumpKingDECOMP = full decompiled Jump King C#. READ-ONLY reference.
+  Never list, scan, index, or write to it. If a dependency is missing from
+  src_cs, tell me which file/folder you need and I'll copy it. Don't search for it.
+
+Rules:
+- Read only files I name. Never scan src_cs\ as a whole.
+- Preserve original math exactly: fixed 60 Hz step, float. No "improvements".
+- Physics code has no platform includes. Plain structs for Vec2/Rect.
+- List unresolved C# dependencies; never invent them.
+- Reply with code + a 3-line summary. No plan or walkthrough artifacts unless asked.
+- Don't run builds. I run make and paste errors.

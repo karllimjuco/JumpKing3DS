@@ -15,12 +15,12 @@ enum class SlopeType {
 inline Vec2 get_slope_normal(SlopeType type) {
     constexpr float INV_SQRT2 = 0.7071067811865475f;
     switch (type) {
-        case SlopeType.TopLeft:     return {-INV_SQRT2, -INV_SQRT2};
-        case SlopeType.TopRight:    return { INV_SQRT2, -INV_SQRT2};
-        case SlopeType.BottomLeft:  return {-INV_SQRT2,  INV_SQRT2};
-        case SlopeType.BottomRight: return { INV_SQRT2,  INV_SQRT2};
-        case SlopeType.None:
-        default:                    return {0.0f, 0.0f};
+        case SlopeType::TopLeft:     return {-INV_SQRT2, -INV_SQRT2};
+        case SlopeType::TopRight:    return { INV_SQRT2, -INV_SQRT2};
+        case SlopeType::BottomLeft:  return {-INV_SQRT2,  INV_SQRT2};
+        case SlopeType::BottomRight: return { INV_SQRT2,  INV_SQRT2};
+        case SlopeType::None:
+        default:                     return {0.0f, 0.0f};
     }
 }
 

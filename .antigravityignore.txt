@@ -1,0 +1,9 @@
+build/
+*.3dsx
+*.elf
+*.smdh
+*.t3x
+*.png
+*.wav
+*.ogg
+*.xnb

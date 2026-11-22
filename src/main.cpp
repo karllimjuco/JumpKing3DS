@@ -1,5 +1,6 @@
 #include <3ds.h>
 #include <citro2d.h>
+#include <cstdio>
 #include "JumpPhysics.hpp"
 #include "LevelRenderer.hpp"
 
@@ -7,7 +8,7 @@ using namespace JumpKing;
 
 int main() {
     // 1. Initialize 3DS hardware subsystems
-    romfsInit();
+    Result romfs_res = romfsInit();
     gfxInitDefault();
     C3D_Init(C3D_DEFAULT_CMDBUF_SIZE);
     C2D_Init(C2D_DEFAULT_MAX_OBJECTS);
@@ -17,10 +18,21 @@ int main() {
     C3D_RenderTarget* top_target    = C2D_CreateScreenTarget(GFX_TOP, GFX_LEFT);
     C3D_RenderTarget* bottom_target = C2D_CreateScreenTarget(GFX_BOTTOM, GFX_LEFT);
 
+    // Verify romfs file accessibility
+    bool romfs_ok = R_SUCCEEDED(romfs_res);
+    FILE* test_f = std::fopen("romfs:/screens/screen_00.bin", "rb");
+    bool screen_file_ok = (test_f != nullptr);
+    if (test_f) {
+        std::fclose(test_f);
+    }
+
     JumpKing::JumpPhysics player;
     JumpKing::LevelRenderer level;
 
+    // Load initial room (screen 0)
     int current_room = 0;
+    level.load_room(current_room);
+
     int jump_count = 0;
     int fall_count = 0;
 
@@ -100,17 +112,25 @@ int main() {
         // 5. Dual-screen render
         C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
 
-        // Top Screen (400x240): World view with vertical camera tracking
-        C2D_TargetClear(top_target, C2D_Color32(0, 0, 0, 255));
+        // Top Screen (400x240): World view with camera tracking
+        // Diagnostic clear: dark blue (indicates rendering loop is alive)
+        C2D_TargetClear(top_target, C2D_Color32(20, 32, 64, 255));
         C2D_SceneBegin(top_target);
         level.render_top_screen(player);
 
-        // Bottom Screen (320x240): Fallback stats HUD & charge meter
-        C2D_TargetClear(bottom_target, C2D_Color32(0, 0, 0, 255));
+        // If romfs failed to mount or file missing, draw error indicator on top screen
+        if (!romfs_ok || !screen_file_ok) {
+            // Draw red warning bar at the top
+            C2D_DrawRectSolid(0, 0, 0, 400, 20, C2D_Color32(220, 40, 40, 255));
+        }
+
+        // Bottom Screen (320x240): HUD & charge meter
+        // Diagnostic clear: dark charcoal
+        C2D_TargetClear(bottom_target, C2D_Color32(28, 30, 36, 255));
         C2D_SceneBegin(bottom_target);
         level.render_bottom_hud(player, current_room, jump_count, fall_count);
 
-        C3D_FrameEnd();
+        C3D_FrameEnd(0);
     }
 
     // 6. Deinitialize subsystems cleanly

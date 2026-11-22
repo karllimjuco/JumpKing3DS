@@ -4,6 +4,11 @@
 
 namespace JumpKing {
 
+struct Vec2 {
+    float x = 0.0f;
+    float y = 0.0f;
+};
+
 struct UnitVectorPair2D {
     Vec2 i; // Tangential component (along slope surface)
     Vec2 j; // Normal component (into/out of slope)
@@ -40,10 +45,10 @@ public:
         float dot_i = dot(vec, vector);
         float dot_j = dot(vec, axis_j);
 
-        return UnitVectorPair2D{
-            .i = {dot_i * vector.x, dot_i * vector.y},
-            .j = {dot_j * axis_j.x, dot_j * axis_j.y}
-        };
+        UnitVectorPair2D result;
+        result.i = {dot_i * vector.x, dot_i * vector.y};
+        result.j = {dot_j * axis_j.x, dot_j * axis_j.y};
+        return result;
     }
 };
 

@@ -18,6 +18,7 @@ gfx/extracted_king/
 gfx/king_frames/
 romfs/levels/
 romfs/screens/*.bin
+romfs/screens/*.raw
 !romfs/screens/.gitkeep
 
 # Python bytecode

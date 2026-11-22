@@ -95,6 +95,11 @@ void LevelRenderer::create_fallback_room() {
 bool LevelRenderer::query_collision(const Rect& hitbox, AdvCollisionInfo& out_info) const {
     out_info = AdvCollisionInfo{};
 
+    // During screen transitions, hitbox may be above or below current room
+    if (hitbox.y + hitbox.height <= 0.0f || hitbox.y >= ROOM_HEIGHT) {
+        return false;
+    }
+
     int start_col = std::clamp(static_cast<int>(hitbox.x / BLOCK_SIZE), 0, COLS - 1);
     int end_col   = std::clamp(static_cast<int>((hitbox.x + hitbox.width - 0.01f) / BLOCK_SIZE), 0, COLS - 1);
     int start_row = std::clamp(static_cast<int>(hitbox.y / BLOCK_SIZE), 0, ROWS - 1);

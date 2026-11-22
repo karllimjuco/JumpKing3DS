@@ -91,6 +91,9 @@ public:
     static constexpr float JUMP_TIME = 0.6f;
     static constexpr float SPLAT_TIME = 0.5f;
 
+    // Safety cap so a push-out loop can never hang the game
+    static constexpr int MAX_PUSHOUT_STEPS = 600;
+
     // Derived from PlayerValues:
     // JUMP_HEIGHT = SigmaSum1(17) = 153.0f
     // CalculateJumpHeight(34, 1.0f) = SigmaSumf(34, 1, 1.0f) = 595.0f
@@ -222,6 +225,7 @@ public:
     // ResolveXCollisionBehaviour with slope vector projection
     template <typename CollisionQueryFn>
     void update_and_resolve_x(CollisionQueryFn&& query_collision) {
+        const Vec2 old_position = position;
         position.x += velocity.x;
 
         Rect hitbox = get_hitbox();
@@ -231,11 +235,19 @@ public:
             int step = (velocity.x > 0.0f) ? 1 : -1;
 
             AdvCollisionInfo step_info = info;
+            int guard = 0;
             do {
                 info = step_info;
                 position.x -= static_cast<float>(step);
                 hitbox = get_hitbox();
-            } while (query_collision(hitbox, step_info));
+            } while (query_collision(hitbox, step_info) && ++guard < MAX_PUSHOUT_STEPS);
+
+            if (guard >= MAX_PUSHOUT_STEPS) {
+                // No free space found: undo the move instead of hanging
+                position = old_position;
+                velocity.x = 0.0f;
+                return;
+            }
 
             if (info.slope_type == SlopeType::None) {
                 velocity.x *= -BOUNCE;
@@ -257,19 +269,29 @@ public:
     // ResolveYCollisionBehaviour with slope landing & ceiling deflection
     template <typename CollisionQueryFn>
     void update_and_resolve_y(CollisionQueryFn&& query_collision) {
+        const Vec2 old_position = position;
         position.y += velocity.y;
-        int y_step = (velocity.y > 0.0f) ? 1 : -1;
+        // vy == 0 counts as "moving down", so an overlap is pushed UP and out
+        int y_step = (velocity.y >= 0.0f) ? 1 : -1;
 
         Rect hitbox = get_hitbox();
         AdvCollisionInfo info;
         if (query_collision(hitbox, info)) {
             position.y = std::floor(position.y);
             AdvCollisionInfo step_info = info;
+            int guard = 0;
             do {
                 info = step_info;
                 position.y -= static_cast<float>(y_step);
                 hitbox = get_hitbox();
-            } while (query_collision(hitbox, step_info));
+            } while (query_collision(hitbox, step_info) && ++guard < MAX_PUSHOUT_STEPS);
+
+            if (guard >= MAX_PUSHOUT_STEPS) {
+                // No free space found: undo the move instead of hanging
+                position = old_position;
+                velocity.y = 0.0f;
+                return;
+            }
 
             if (y_step > 0) {
                 // Moving downwards (landing)
@@ -313,9 +335,24 @@ public:
                 velocity.y = 0.0f;
             }
         } else {
-            is_on_ground = false;
-            if (current_state == State::Grounded) {
-                current_state = State::Airborne;
+            // No overlap at the new position. If we were standing, probe 1px
+            // below so resting on the floor does not flip us to Airborne.
+            bool standing = false;
+            if (current_state == State::Grounded && velocity.y >= 0.0f) {
+                Rect probe = get_hitbox();
+                probe.y += 1.0f;
+                AdvCollisionInfo probe_info;
+                standing = query_collision(probe, probe_info) &&
+                           probe_info.slope_type == SlopeType::None;
+            }
+
+            if (standing) {
+                is_on_ground = true;
+            } else {
+                is_on_ground = false;
+                if (current_state == State::Grounded) {
+                    current_state = State::Airborne;
+                }
             }
         }
     }
