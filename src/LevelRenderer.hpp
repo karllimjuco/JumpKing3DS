@@ -99,6 +99,9 @@ private:
     C2D_TextBuf m_text_buf = nullptr;
     C2D_Text m_text_hud{};
     C2D_SpriteSheet m_sprite_sheet = nullptr;
+    C2D_SpriteSheet m_bg_sheet = nullptr;
+    C2D_Image m_bg_image{};
+    bool m_has_bg = false;
     C2D_Sprite m_player_sprite{};
 
     u32 get_tile_color(TileType tile) const;

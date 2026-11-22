@@ -16,6 +16,9 @@ LevelRenderer::LevelRenderer() {
 }
 
 LevelRenderer::~LevelRenderer() {
+    if (m_bg_sheet) {
+        C2D_SpriteSheetFree(m_bg_sheet);
+    }
     if (m_sprite_sheet) {
         C2D_SpriteSheetFree(m_sprite_sheet);
     }
@@ -35,6 +38,22 @@ bool LevelRenderer::load_room(int room_index) {
 
     std::size_t read_bytes = std::fread(m_tiles.data(), sizeof(TileType), COLS * ROWS, f);
     std::fclose(f);
+
+    // Free previous background and load active room's official background
+    if (m_bg_sheet) {
+        C2D_SpriteSheetFree(m_bg_sheet);
+        m_bg_sheet = nullptr;
+        m_has_bg = false;
+    }
+
+    char bg_path[64];
+    std::snprintf(bg_path, sizeof(bg_path), "romfs:/bgs/bg_%02d.t3x", room_index);
+    m_bg_sheet = C2D_SpriteSheetLoad(bg_path);
+    if (m_bg_sheet && C2D_SpriteSheetCount(m_bg_sheet) > 0) {
+        m_bg_image = C2D_SpriteSheetGetImage(m_bg_sheet, 0);
+        m_has_bg = true;
+    }
+
     return read_bytes == (COLS * ROWS);
 }
 
@@ -112,42 +131,77 @@ bool LevelRenderer::query_collision(const Rect& hitbox, AdvCollisionInfo& out_in
             TileType tile = m_tiles[row * COLS + col];
             if (tile == TileType::Empty) continue;
 
-            collided = true;
-            out_info.has_collision = true;
+            float tx = static_cast<float>(col * BLOCK_SIZE);
+            float ty = static_cast<float>(row * BLOCK_SIZE);
+            bool tile_hit = false;
 
             switch (tile) {
                 case TileType::Solid:
+                    tile_hit = true;
                     break;
                 case TileType::Ice:
+                    tile_hit = true;
                     out_info.ice = true;
                     break;
                 case TileType::Snow:
+                    tile_hit = true;
                     out_info.snow = true;
                     break;
                 case TileType::Sand:
+                    tile_hit = true;
                     out_info.sand = true;
                     break;
                 case TileType::Water:
+                    tile_hit = true;
                     out_info.water = true;
                     break;
-                case TileType::SlopeTopLeft:
-                    out_info.slope_type = SlopeType::TopLeft;
-                    out_info.slope_normal = get_slope_normal(SlopeType::TopLeft);
+                case TileType::SlopeTopLeft: {
+                    float max_x = std::min(hitbox.x + hitbox.width, tx + BLOCK_SIZE);
+                    float max_y = std::min(hitbox.y + hitbox.height, ty + BLOCK_SIZE);
+                    if ((max_x - tx) + (max_y - ty) > static_cast<float>(BLOCK_SIZE)) {
+                        tile_hit = true;
+                        out_info.slope_type = SlopeType::TopLeft;
+                        out_info.slope_normal = get_slope_normal(SlopeType::TopLeft);
+                    }
                     break;
-                case TileType::SlopeTopRight:
-                    out_info.slope_type = SlopeType::TopRight;
-                    out_info.slope_normal = get_slope_normal(SlopeType::TopRight);
+                }
+                case TileType::SlopeTopRight: {
+                    float min_x = std::max(hitbox.x, tx);
+                    float max_y = std::min(hitbox.y + hitbox.height, ty + BLOCK_SIZE);
+                    if ((max_y - ty) > (min_x - tx)) {
+                        tile_hit = true;
+                        out_info.slope_type = SlopeType::TopRight;
+                        out_info.slope_normal = get_slope_normal(SlopeType::TopRight);
+                    }
                     break;
-                case TileType::SlopeBottomLeft:
-                    out_info.slope_type = SlopeType::BottomLeft;
-                    out_info.slope_normal = get_slope_normal(SlopeType::BottomLeft);
+                }
+                case TileType::SlopeBottomLeft: {
+                    float min_x = std::max(hitbox.x, tx);
+                    float min_y = std::max(hitbox.y, ty);
+                    if ((min_x - tx) + (min_y - ty) < static_cast<float>(BLOCK_SIZE)) {
+                        tile_hit = true;
+                        out_info.slope_type = SlopeType::BottomLeft;
+                        out_info.slope_normal = get_slope_normal(SlopeType::BottomLeft);
+                    }
                     break;
-                case TileType::SlopeBottomRight:
-                    out_info.slope_type = SlopeType::BottomRight;
-                    out_info.slope_normal = get_slope_normal(SlopeType::BottomRight);
+                }
+                case TileType::SlopeBottomRight: {
+                    float max_x = std::min(hitbox.x + hitbox.width, tx + BLOCK_SIZE);
+                    float min_y = std::max(hitbox.y, ty);
+                    if ((min_y - ty) < (max_x - tx)) {
+                        tile_hit = true;
+                        out_info.slope_type = SlopeType::BottomRight;
+                        out_info.slope_normal = get_slope_normal(SlopeType::BottomRight);
+                    }
                     break;
+                }
                 default:
                     break;
+            }
+
+            if (tile_hit) {
+                collided = true;
+                out_info.has_collision = true;
             }
         }
     }
@@ -177,12 +231,12 @@ void LevelRenderer::draw_player_sprite(const JumpPhysics& player, float px, floa
             frame = FRAME_JUMP_CHARGE;
             break;
         case JumpPhysics::State::Airborne:
-            if (player.velocity.y < 0.0f) {
-                frame = FRAME_JUMP_UP;
-            } else if (player.is_knocked) {
+            if (player.is_knocked) {
                 frame = FRAME_JUMP_BOUNCE;
-            } else {
+            } else if (player.velocity.y > 0.0f) {
                 frame = FRAME_JUMP_FALL;
+            } else {
+                frame = FRAME_JUMP_UP;
             }
             break;
         case JumpPhysics::State::Splat:
@@ -248,32 +302,37 @@ void LevelRenderer::render_top_screen(const JumpPhysics& player) {
     m_camera_y = std::clamp(player.position.y - (TOP_SCREEN_H / 2.0f) + (JumpPhysics::PLAYER_HEIGHT / 2.0f),
                             0.0f, static_cast<float>(ROOM_HEIGHT - TOP_SCREEN_H));
 
-    C2D_DrawRectSolid(0, 0, 0, TOP_SCREEN_W, TOP_SCREEN_H, C2D_Color32(18, 16, 26, 255));
+    if (m_has_bg) {
+        // Draw 1:1 official Jump King pixel-art room background
+        C2D_DrawImageAt(m_bg_image, -m_camera_x, -m_camera_y, 0.0f, nullptr, 1.0f, 1.0f);
+    } else {
+        C2D_DrawRectSolid(0, 0, 0, TOP_SCREEN_W, TOP_SCREEN_H, C2D_Color32(18, 16, 26, 255));
 
-    int start_col = std::max(0, static_cast<int>(m_camera_x / BLOCK_SIZE));
-    int end_col   = std::min(COLS - 1, static_cast<int>((m_camera_x + TOP_SCREEN_W) / BLOCK_SIZE) + 1);
-    int start_row = std::max(0, static_cast<int>(m_camera_y / BLOCK_SIZE));
-    int end_row   = std::min(ROWS - 1, static_cast<int>((m_camera_y + TOP_SCREEN_H) / BLOCK_SIZE) + 1);
+        int start_col = std::max(0, static_cast<int>(m_camera_x / BLOCK_SIZE));
+        int end_col   = std::min(COLS - 1, static_cast<int>((m_camera_x + TOP_SCREEN_W) / BLOCK_SIZE) + 1);
+        int start_row = std::max(0, static_cast<int>(m_camera_y / BLOCK_SIZE));
+        int end_row   = std::min(ROWS - 1, static_cast<int>((m_camera_y + TOP_SCREEN_H) / BLOCK_SIZE) + 1);
 
-    for (int row = start_row; row <= end_row; ++row) {
-        for (int col = start_col; col <= end_col; ++col) {
-            TileType tile = m_tiles[row * COLS + col];
-            if (tile == TileType::Empty) continue;
+        for (int row = start_row; row <= end_row; ++row) {
+            for (int col = start_col; col <= end_col; ++col) {
+                TileType tile = m_tiles[row * COLS + col];
+                if (tile == TileType::Empty) continue;
 
-            float x = col * BLOCK_SIZE - m_camera_x;
-            float y = row * BLOCK_SIZE - m_camera_y;
-            u32 color = get_tile_color(tile);
+                float x = col * BLOCK_SIZE - m_camera_x;
+                float y = row * BLOCK_SIZE - m_camera_y;
+                u32 color = get_tile_color(tile);
 
-            if (tile == TileType::SlopeTopLeft) {
-                C2D_DrawTriangle(x + BLOCK_SIZE, y, color,
-                                 x + BLOCK_SIZE, y + BLOCK_SIZE, color,
-                                 x, y + BLOCK_SIZE, color, 0);
-            } else if (tile == TileType::SlopeTopRight) {
-                C2D_DrawTriangle(x, y, color,
-                                 x + BLOCK_SIZE, y + BLOCK_SIZE, color,
-                                 x, y + BLOCK_SIZE, color, 0);
-            } else {
-                C2D_DrawRectSolid(x, y, 0, BLOCK_SIZE, BLOCK_SIZE, color);
+                if (tile == TileType::SlopeTopLeft) {
+                    C2D_DrawTriangle(x + BLOCK_SIZE, y, color,
+                                     x + BLOCK_SIZE, y + BLOCK_SIZE, color,
+                                     x, y + BLOCK_SIZE, color, 0);
+                } else if (tile == TileType::SlopeTopRight) {
+                    C2D_DrawTriangle(x, y, color,
+                                     x + BLOCK_SIZE, y + BLOCK_SIZE, color,
+                                     x, y + BLOCK_SIZE, color, 0);
+                } else {
+                    C2D_DrawRectSolid(x, y, 0, BLOCK_SIZE, BLOCK_SIZE, color);
+                }
             }
         }
     }

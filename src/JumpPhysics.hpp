@@ -300,6 +300,7 @@ public:
 
                 if (is_slope) {
                     is_on_ground = false;
+                    current_state = State::Airborne;
                     if (VectorMath::dot(last_velocity, info.slope_normal) < 0.0f) {
                         // Project along slope tangent and set knocked
                         velocity = VectorMath::make_composite(velocity, info.slope_normal).i;
