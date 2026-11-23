@@ -80,13 +80,13 @@ public:
                     result[index] = TileType::Water;
                 } else if (c.equals_rgb(COLOR_SLOPE.r, COLOR_SLOPE.g, COLOR_SLOPE.b)) {
                     // Match BaseBlockFactory slope orientation rules
-                    if (is_edge(colors, x + 1, y) && is_edge(colors, x, y + 1)) {
+                    if (is_edge(colors, x - 1, y) && is_edge(colors, x, y - 1)) {
                         result[index] = TileType::SlopeTopLeft;
-                    } else if (is_edge(colors, x - 1, y) && is_edge(colors, x, y + 1)) {
-                        result[index] = TileType::SlopeTopRight;
                     } else if (is_edge(colors, x + 1, y) && is_edge(colors, x, y - 1)) {
+                        result[index] = TileType::SlopeTopRight;
+                    } else if (is_edge(colors, x - 1, y) && is_edge(colors, x, y + 1)) {
                         result[index] = TileType::SlopeBottomLeft;
-                    } else if (is_edge(colors, x - 1, y) && is_edge(colors, x, y - 1)) {
+                    } else if (is_edge(colors, x + 1, y) && is_edge(colors, x, y + 1)) {
                         result[index] = TileType::SlopeBottomRight;
                     } else {
                         result[index] = TileType::SlopeTopRight; // Default fallback

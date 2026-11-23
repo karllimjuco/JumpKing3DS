@@ -86,14 +86,14 @@ def convert_level():
                         tile = 5 # Water
                     elif match_color(rgb, COLOR_SLOPE):
                         # Match BaseBlockFactory slope orientation rules
-                        if is_edge(img, gx + 1, gy, width, height) and is_edge(img, gx, gy + 1, width, height):
-                            tile = 6 # SlopeTopLeft
-                        elif is_edge(img, gx - 1, gy, width, height) and is_edge(img, gx, gy + 1, width, height):
-                            tile = 7 # SlopeTopRight
+                        if is_edge(img, gx - 1, gy, width, height) and is_edge(img, gx, gy - 1, width, height):
+                            tile = 6 # SlopeTopLeft (solid at bottom-right, air at top-left)
                         elif is_edge(img, gx + 1, gy, width, height) and is_edge(img, gx, gy - 1, width, height):
-                            tile = 8 # SlopeBottomLeft
-                        elif is_edge(img, gx - 1, gy, width, height) and is_edge(img, gx, gy - 1, width, height):
-                            tile = 9 # SlopeBottomRight
+                            tile = 7 # SlopeTopRight (solid at bottom-left, air at top-right)
+                        elif is_edge(img, gx - 1, gy, width, height) and is_edge(img, gx, gy + 1, width, height):
+                            tile = 8 # SlopeBottomLeft (solid at top-right, air at bottom-left)
+                        elif is_edge(img, gx + 1, gy, width, height) and is_edge(img, gx, gy + 1, width, height):
+                            tile = 9 # SlopeBottomRight (solid at top-left, air at bottom-right)
                         else:
                             tile = 7 # Fallback slope
 

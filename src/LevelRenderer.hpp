@@ -89,9 +89,14 @@ public:
 
     float get_camera_x() const { return m_camera_x; }
     float get_camera_y() const { return m_camera_y; }
+    int get_current_room() const { return m_current_room; }
+    void toggle_collision_overlay() { m_show_collision_overlay = !m_show_collision_overlay; }
+    bool is_collision_overlay_visible() const { return m_show_collision_overlay; }
 
 private:
     std::vector<TileType> m_tiles;
+    int m_current_room = -1;
+    bool m_show_collision_overlay = false;
     float m_camera_x = 0.0f;
     float m_camera_y = 0.0f;
     float m_anim_timer = 0.0f;

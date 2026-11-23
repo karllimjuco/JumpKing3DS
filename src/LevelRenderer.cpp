@@ -28,6 +28,10 @@ LevelRenderer::~LevelRenderer() {
 }
 
 bool LevelRenderer::load_room(int room_index) {
+    if (room_index == m_current_room && m_has_bg) {
+        return true;
+    }
+
     char path[64];
     std::snprintf(path, sizeof(path), "romfs:/screens/screen_%02d.bin", room_index);
 
@@ -54,7 +58,11 @@ bool LevelRenderer::load_room(int room_index) {
         m_has_bg = true;
     }
 
-    return read_bytes == (COLS * ROWS);
+    if (read_bytes == (COLS * ROWS)) {
+        m_current_room = room_index;
+        return true;
+    }
+    return false;
 }
 
 bool LevelRenderer::load_room_from_mask(int room_index) {
@@ -125,6 +133,7 @@ bool LevelRenderer::query_collision(const Rect& hitbox, AdvCollisionInfo& out_in
     int end_row   = std::clamp(static_cast<int>((hitbox.y + hitbox.height - 0.01f) / BLOCK_SIZE), 0, ROWS - 1);
 
     bool collided = false;
+    bool has_solid_hit = false;
 
     for (int row = start_row; row <= end_row; ++row) {
         for (int col = start_col; col <= end_col; ++col) {
@@ -138,21 +147,26 @@ bool LevelRenderer::query_collision(const Rect& hitbox, AdvCollisionInfo& out_in
             switch (tile) {
                 case TileType::Solid:
                     tile_hit = true;
+                    has_solid_hit = true;
                     break;
                 case TileType::Ice:
                     tile_hit = true;
+                    has_solid_hit = true;
                     out_info.ice = true;
                     break;
                 case TileType::Snow:
                     tile_hit = true;
+                    has_solid_hit = true;
                     out_info.snow = true;
                     break;
                 case TileType::Sand:
                     tile_hit = true;
+                    has_solid_hit = true;
                     out_info.sand = true;
                     break;
                 case TileType::Water:
                     tile_hit = true;
+                    has_solid_hit = true;
                     out_info.water = true;
                     break;
                 case TileType::SlopeTopLeft: {
@@ -176,9 +190,9 @@ bool LevelRenderer::query_collision(const Rect& hitbox, AdvCollisionInfo& out_in
                     break;
                 }
                 case TileType::SlopeBottomLeft: {
-                    float min_x = std::max(hitbox.x, tx);
+                    float max_x = std::min(hitbox.x + hitbox.width, tx + BLOCK_SIZE);
                     float min_y = std::max(hitbox.y, ty);
-                    if ((min_x - tx) + (min_y - ty) < static_cast<float>(BLOCK_SIZE)) {
+                    if ((min_y - ty) < (max_x - tx)) {
                         tile_hit = true;
                         out_info.slope_type = SlopeType::BottomLeft;
                         out_info.slope_normal = get_slope_normal(SlopeType::BottomLeft);
@@ -186,9 +200,9 @@ bool LevelRenderer::query_collision(const Rect& hitbox, AdvCollisionInfo& out_in
                     break;
                 }
                 case TileType::SlopeBottomRight: {
-                    float max_x = std::min(hitbox.x + hitbox.width, tx + BLOCK_SIZE);
+                    float min_x = std::max(hitbox.x, tx);
                     float min_y = std::max(hitbox.y, ty);
-                    if ((min_y - ty) < (max_x - tx)) {
+                    if ((min_x - tx) + (min_y - ty) < static_cast<float>(BLOCK_SIZE)) {
                         tile_hit = true;
                         out_info.slope_type = SlopeType::BottomRight;
                         out_info.slope_normal = get_slope_normal(SlopeType::BottomRight);
@@ -205,6 +219,13 @@ bool LevelRenderer::query_collision(const Rect& hitbox, AdvCollisionInfo& out_in
             }
         }
     }
+
+    // Solid contact always wins over slope — prevents slope-ejection on mixed solid+slope edges
+    if (has_solid_hit) {
+        out_info.slope_type   = SlopeType::None;
+        out_info.slope_normal = {0.0f, 0.0f};
+    }
+
     return collided;
 }
 
@@ -307,7 +328,9 @@ void LevelRenderer::render_top_screen(const JumpPhysics& player) {
         C2D_DrawImageAt(m_bg_image, -m_camera_x, -m_camera_y, 0.0f, nullptr, 1.0f, 1.0f);
     } else {
         C2D_DrawRectSolid(0, 0, 0, TOP_SCREEN_W, TOP_SCREEN_H, C2D_Color32(18, 16, 26, 255));
+    }
 
+    if (!m_has_bg || m_show_collision_overlay) {
         int start_col = std::max(0, static_cast<int>(m_camera_x / BLOCK_SIZE));
         int end_col   = std::min(COLS - 1, static_cast<int>((m_camera_x + TOP_SCREEN_W) / BLOCK_SIZE) + 1);
         int start_row = std::max(0, static_cast<int>(m_camera_y / BLOCK_SIZE));
@@ -321,6 +344,10 @@ void LevelRenderer::render_top_screen(const JumpPhysics& player) {
                 float x = col * BLOCK_SIZE - m_camera_x;
                 float y = row * BLOCK_SIZE - m_camera_y;
                 u32 color = get_tile_color(tile);
+                if (m_has_bg && m_show_collision_overlay) {
+                    // Semi-transparent overlay mode
+                    color = (color & 0x00FFFFFF) | 0x88000000;
+                }
 
                 if (tile == TileType::SlopeTopLeft) {
                     C2D_DrawTriangle(x + BLOCK_SIZE, y, color,
@@ -329,6 +356,14 @@ void LevelRenderer::render_top_screen(const JumpPhysics& player) {
                 } else if (tile == TileType::SlopeTopRight) {
                     C2D_DrawTriangle(x, y, color,
                                      x + BLOCK_SIZE, y + BLOCK_SIZE, color,
+                                     x, y + BLOCK_SIZE, color, 0);
+                } else if (tile == TileType::SlopeBottomLeft) {
+                    C2D_DrawTriangle(x, y, color,
+                                     x + BLOCK_SIZE, y, color,
+                                     x + BLOCK_SIZE, y + BLOCK_SIZE, color, 0);
+                } else if (tile == TileType::SlopeBottomRight) {
+                    C2D_DrawTriangle(x, y, color,
+                                     x + BLOCK_SIZE, y, color,
                                      x, y + BLOCK_SIZE, color, 0);
                 } else {
                     C2D_DrawRectSolid(x, y, 0, BLOCK_SIZE, BLOCK_SIZE, color);

@@ -151,13 +151,13 @@ def convert_level_png_to_screens(level_png_path, out_screens_dir):
                     elif match_color(c, COLOR_WATER):
                         tile = 5
                     elif match_color(c, COLOR_SLOPE):
-                        if is_edge(img, gx + 1, gy, width, height) and is_edge(img, gx, gy + 1, width, height):
+                        if is_edge(img, gx - 1, gy, width, height) and is_edge(img, gx, gy - 1, width, height):
                             tile = 6
-                        elif is_edge(img, gx - 1, gy, width, height) and is_edge(img, gx, gy + 1, width, height):
-                            tile = 7
                         elif is_edge(img, gx + 1, gy, width, height) and is_edge(img, gx, gy - 1, width, height):
+                            tile = 7
+                        elif is_edge(img, gx - 1, gy, width, height) and is_edge(img, gx, gy + 1, width, height):
                             tile = 8
-                        elif is_edge(img, gx - 1, gy, width, height) and is_edge(img, gx, gy - 1, width, height):
+                        elif is_edge(img, gx + 1, gy, width, height) and is_edge(img, gx, gy + 1, width, height):
                             tile = 9
                         else:
                             tile = 7

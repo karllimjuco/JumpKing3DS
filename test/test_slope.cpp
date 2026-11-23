@@ -41,7 +41,24 @@ int main() {
     assert(!player.is_on_ground);
     assert(player.is_knocked);
     assert(player.velocity.x > 0.0f);
+    assert(player.velocity.y > 0.0f);
 
-    std::cout << "Slope collision and vector math tests passed successfully.\n";
+    // 3. Multi-frame sliding verification: player must continue sliding down the slope
+    float prev_x = player.position.x;
+    float prev_y = player.position.y;
+    for (int frame = 0; frame < 10; ++frame) {
+        player.tick(no_input, no_input, slope_collision);
+        assert(!player.is_on_ground);
+        assert(player.current_state == JumpPhysics::State::Airborne);
+        assert(player.is_knocked);
+        assert(player.velocity.x > 0.0f);
+        assert(player.velocity.y > 0.0f);
+        assert(player.position.x > prev_x);
+        assert(player.position.y >= prev_y);
+        prev_x = player.position.x;
+        prev_y = player.position.y;
+    }
+
+    std::cout << "Slope collision, vector math, and multi-frame sliding tests passed successfully.\n";
     return 0;
 }

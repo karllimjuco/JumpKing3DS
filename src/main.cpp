@@ -49,6 +49,10 @@ int main() {
             break; // Exit to Homebrew Launcher
         }
 
+        if (kDown & (KEY_X | KEY_Y)) {
+            level.toggle_collision_overlay();
+        }
+
         circlePosition circle;
         hidCircleRead(&circle);
 
@@ -94,9 +98,14 @@ int main() {
         // Room transition logic (screen height is 360 px)
         if (player.position.y < 0.0f) {
             // Jumped up into next room
-            current_room++;
-            player.position.y += JumpKing::LevelRenderer::ROOM_HEIGHT;
-            level.load_room(current_room);
+            if (current_room < 44) {
+                current_room++;
+                player.position.y += JumpKing::LevelRenderer::ROOM_HEIGHT;
+                level.load_room(current_room);
+            } else {
+                player.position.y = 0.0f;
+                player.velocity.y = 0.0f;
+            }
         } else if (player.position.y >= JumpKing::LevelRenderer::ROOM_HEIGHT) {
             // Fell down into previous room
             if (current_room > 0) {

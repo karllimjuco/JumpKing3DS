@@ -256,7 +256,7 @@ public:
                     play_bump_sfx = true;
                 }
             } else {
-                if (is_on_ground && std::abs(velocity.x) <= WALK_SPEED && velocity.y > 0.0f) {
+                if (is_on_ground && std::abs(velocity.x) <= WALK_SPEED) {
                     velocity.x = 0.0f;
                 } else if (VectorMath::dot(last_velocity, info.slope_normal) < 0.0f) {
                     // Project velocity along the slope tangent
@@ -301,16 +301,15 @@ public:
                 if (is_slope) {
                     is_on_ground = false;
                     current_state = State::Airborne;
-                    if (VectorMath::dot(last_velocity, info.slope_normal) < 0.0f) {
-                        // Project along slope tangent and set knocked
-                        velocity = VectorMath::make_composite(velocity, info.slope_normal).i;
-                        is_knocked = true;
-                    } else {
-                        is_slope = false;
+                    // Project velocity along slope tangent and set knocked
+                    velocity = VectorMath::make_composite(velocity, info.slope_normal).i;
+                    float speed = VectorMath::magnitude(velocity);
+                    if (speed > MAX_SLIDE) {
+                        velocity.x = (velocity.x / speed) * MAX_SLIDE;
+                        velocity.y = (velocity.y / speed) * MAX_SLIDE;
                     }
-                }
-
-                if (!is_slope) {
+                    is_knocked = true;
+                } else {
                     is_knocked = false;
                     if (last_velocity.y >= MAX_FALL) {
                         current_state = State::Splat;
